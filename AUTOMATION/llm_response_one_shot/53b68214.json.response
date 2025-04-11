@@ -1,0 +1,384 @@
+User: Hey DeepSeek, let’s tackle a structured reasoning challenge!
+You're exceptionally skilled at pattern recognition and logical reasoning, so I have an exciting task for you. Your goal is to learn the transformations that convert input tree to output tree, given few instances of input-output tree pairs. Next we will describe, how these trees look like, how to describe them in text and how transformations look like and how to describe them in text.
+
+Understanding the Problem:
+Input is a tree of shapes. Each shape becomes a tree node with attributes: Color-digit, Bounding box dimensions, Top-left corner position, Child details (nested shapes inside the bounding box)
+The number 0 represents the background (if applicable).
+Each distinct shape is formed by connected non-zero pixels.
+Some shapes are nested within others, forming a hierarchical structure, that is, In the tree, if two shape nodes are in a parent-child relationships, then it means that the child shape will be nested within parent shape if they are rendered on the 2D plane.
+
+Defining the Tree Representation (these are tree of different shapes): To represent the matrix as a tree:
+Identify distinct shapes using connected non-zero pixels (8-neighbours connectivity). Connected components have same color and can have some another connected component (shape) nested inside them.
+Find the minimal bounding rectangle enclosing each shape. 
+Hierarchy Rules:
+A shape (child) must be fully contained within its parent's bounding box.
+Children always have a higher z-index than their parent, meaning if two shapes overlap, the child’s color takes precedence over the parent’s color.
+Each node of the tree has an attribute blueprint, which is the bitmask representation of the shapes present in the figure.
+The answer should be structured as follows
+(color top_left_cell dimension unique_node_id [bitmask] children)
+The children should also be structured in a similar manner.
+
+To facilitate structured and predictable tree transformations, we define a Domain-Specific Language (DSL) containing a set of allowed tree operations. These operations modify the existing tree structure while ensuring structural integrity and logical consistency.
+Each transformation must be deterministic, reversible when possible, and ensure that the tree remains valid after the operation. There are a total of 7 tranformations on the DSL as given below.
+
+1. Add Node
+Operation: Insert a new child node under an existing parent.
+Parameters Required:[parent_id: Identifier of the existing parent node, node_id: Unique identifier for the new node, color: predefined pixel color value, position: Coordinates of top-left cell, dimensions: Dimension of bounding rectangle]
+
+2. Translate (Shifting Position)
+Parameters:[node_id: Target node, new_position: Updated coordinates (new_x, new_y)]
+Operation: Adjusts the top-left position of the node in the matrix. 
+Example: Translate(node_id, (new_x, new_y)):
+...(color top_left_cell dimension unique_node_id [bitmask] children) transforms to ...(color (top_left_cell: new_x, new_y) dimension unique_node_id [bitmask] children)
+
+3. Rotation
+Operation: Rotates the node’s shape by 90, 180 or 270 degrees clockwise.
+Parameters:[node_id: Target node, angle: Rotation angle (90, 180, 270).]
+Effects: [The bounding box updates accordingly. The node’s blueprint updates to reflect the new orientation.]
+Example: Rotation(node_id, 270):
+....(color top_left_cell (3x2) unique_node_id [[0, 1], [1, 1], [1, 1]] children) transforms to ...(color transformed_top_left_cell (2x3) unique_node_id [[1, 1, 1], [0, 1, 1]] children)
+
+4. Mirroring (Reflection) 
+Operation: Reflects a node along a certain axes. 
+Types of Reflection: [horizontal_mirror: Flip left-to-right, vertical_mirror: Flip top-to-bottom, left_diagonal_mirror: Flip along the top-left to bottom-right diagonal, right_diagonal_mirror: Flip along the top-right to bottom-left diagonal] 
+Parameters: [node_id: Target node, type: Type of reflection] 
+Example 1: Mirroring(node_id, horizontal_mirror): 
+....(color top_left_cell (3x2) unique_node_id [[0, 1], [1, 1], [1, 1]] children) transforms to .... (color top_left_cell (3x2) unique_node_id [[1, 1], [1, 1], [0, 1]] children)
+Example 2: Mirroring(node_id, left_diagonal_mirror): 
+....(color top_left_cell (3x2) unique_node_id [[1, 1, 1], [0, 0, 1], [0, 0, 1]] children) transforms to .... (color top_left_cell (3x2) unique_node_id [[1, 0, 0], [1, 0, 0], [1, 1, 1]] children)
+
+5. Flood_Fill (Inner Filling)
+Operation: Fills an enclosed region inside a node’s blueprint, ensuring the boundaries remain unchanged.
+Parameters: [node_id: Target node identifier]
+Example: Flood_Fill(node_id):
+....(color top_left_cell (3x4) unique_node_id [[1, 1, 1, 0], [1, 0, 1, 1], [1, 1, 1, 0]] children) transforms to ....(color top_left_cell (3x4) unique_node_id [[1, 1, 1, 0], [1, 1, 1, 1], [1, 1, 1, 0]] children)
+
+6. Change_Node_Color
+Parameters: [node_id: Target node, new_color: Updated color value]
+Operation: Change color attribute of the node.
+Example: Change_Node_Color(node_id, new_color):
+...(color top_left_cell dimension [bitmask] children) transforms to ...(new_color top_left_cell dimension [bitmask] children)
+
+7. Remove Node
+Operation: Deletes a specific node from the tree. The children of this node become the direct children of parent of this node.
+Parameters: [node_id: Target node.]
+Example: Remove_Node(2)
+...(3 (0,0) (9x9) 1 [ [0,0,0,0,0,1,0,0,0], [0,0,0,0,1,0,0,0,0], [0,1,1,0,1,1,0,1,0], [1,0,0,1,0,0,1,0,1], [0,0,0,1,0,0,1,1,0], [0,0,0,1,0,0,1,0,0], [0,0,0,1,0,0,1,0,0], [0,0,0,0,1,1,0,1,0], [0,0,0,0,0,0,0,0,1]]  (4 (3,4) (4x2) 2 [[1,1],[1,1],[1,1],[1,1]])  (4 (3,7) (1x1) 3 [[1]])) transforms to ...(3 (0,0) 9x9 1 [ [0,0,0,0,0,1,0,0,0], [0,0,0,0,1,0,0,0,0], [0,1,1,0,1,1,0,1,0], [1,0,0,1,0,0,1,0,1], [0,0,0,1,0,0,1,1,0], [0,0,0,1,0,0,1,0,0], [0,0,0,1,0,0,1,0,0], [0,0,0,0,1,1,0,1,0], [0,0,0,0,0,0,0,0,1]] (4 (3,7) (1x1) 3 [[1]]))
+-------------------------------------------------------
+
+Every operation follows a strict parameterized format, that is, the output should be given in the specified format.
+Error handling should ensure logical consistency after each transformation.
+Parent-child relationships must be preserved, except when explicitly modified.
+This structured DSL ensures precise, predictable tree transformations while restricting the search space for LLM-driven modifications.
+
+I will give a few example pairs of input-output tree along with one test input tree. I want you to identify the tree operations used in the examples and apply the same on the test input sequentially. The output should be a program, that is, a sequence of operations that you applied on test input in order to get the output tree. Make sure that you use only the tree operations that are described above.,
+
+
+Train Example 0
+Input Tree:
+(0 (0, 0) (6x10) 0 [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]] (1 (0, 0) (6x7) 1 [[1, 1, 1, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0, 0], [0, 0, 1, 1, 1, 0, 0], [0, 0, 0, 0, 1, 0, 0], [0, 0, 0, 0, 1, 1, 1], [0, 0, 0, 0, 0, 0, 1]] ))
+Output tree:
+(0 (0, 0) (10x10) 0 [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]] (1 (0, 0) (9x10) 1 [[1, 1, 1, 0, 0, 0, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0, 0, 0, 0, 0], [0, 0, 1, 1, 1, 0, 0, 0, 0, 0], [0, 0, 0, 0, 1, 0, 0, 0, 0, 0], [0, 0, 0, 0, 1, 1, 1, 0, 0, 0], [0, 0, 0, 0, 0, 0, 1, 0, 0, 0], [0, 0, 0, 0, 0, 0, 1, 1, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 1, 1]] ))
+
+Train Example 1
+Input Tree:
+(0 (0, 0) (5x10) 0 [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]] (3 (0, 2) (5x1) 1 [[1], [1], [1], [1], [1]] ))
+Output tree:
+(0 (0, 0) (10x10) 0 [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]] (3 (0, 2) (10x1) 1 [[1], [1], [1], [1], [1], [1], [1], [1], [1], [1]] ))
+
+Train Example 2
+Input Tree:
+(0 (0, 0) (8x10) 0 [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]] (2 (0, 0) (8x3) 1 [[0, 1, 0], [0, 1, 0], [1, 0, 1], [0, 1, 0], [0, 1, 0], [1, 0, 1], [0, 1, 0], [0, 1, 0]] ))
+Output tree:
+(0 (0, 0) (10x10) 0 [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]] (2 (0, 0) (10x3) 1 [[0, 1, 0], [0, 1, 0], [1, 0, 1], [0, 1, 0], [0, 1, 0], [1, 0, 1], [0, 1, 0], [0, 1, 0], [1, 0, 1], [0, 1, 0]] ))
+
+Test Example 
+Input Tree:
+(0 (0, 0) (8x10) 0 [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]] (6 (0, 3) (8x2) 1 [[0, 1], [1, 0], [0, 1], [1, 0], [0, 1], [1, 0], [0, 1], [1, 0]] ))Test Example 
+Input Tree:
+(0 (0, 0) (5x10) 0 [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]] (8 (0, 1) (5x3) 1 [[1, 1, 1], [1, 0, 1], [1, 1, 1], [1, 0, 1], [1, 1, 1]] ))
+
+Bot: <think>
+Alright, let's tackle this problem. So, the user provided some input and output examples for a tree structure. It seems like they want to understand how the transformation from the input to the output works.
+
+Looking at the first example:
+
+**Input Tree:**
+(0 (0, 0) (10x10) 0 [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]] )
+
+**Output Tree:**
+(0 (0, 0) (10x10) 0 [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]] (2 (0, 0) (10x3) 1 [[0, 1, 0], [0, 1, 0], [1, 0, 1], [0, 1, 0], [0, 1, 0], [1, 0, 1], [0, 1, 0], [0, 1, 0], [1, 0, 1], [0, 1, 0]] ))
+
+Hmm, I notice that the input has a structure with numbers and matrices. The first part is (0 (0, 0) (10x10) ...), which might represent a node with value 0, children 0 and 0, size 10x10, and some data array.
+
+In the output, it's similar but ends with another structure: (2 (0, 0) (10x3) ...). So maybe this transformation is about processing the data arrays within each node. Perhaps a reduction or aggregation step where values are being summed up based on certain criteria.
+
+Looking at the first example, the input matrix is all zeros except for some ones in specific positions. The output has two main branches: one with 10x10 (all zeros) and another with 10x3 containing alternating 0s and 1s.
+
+Wait, maybe each node's data array is being partitioned or processed based on the structure of its children? Or perhaps it's about grouping elements into submatrices.
+
+Looking at the second example:
+
+**Input Tree:**
+(0 (0, 0) (8x5) [[234], [196], [274], [192], [278], [128], [193], [165]] )
+
+**Output Tree:**
+(0 (0, 0) (8x5) 0 [[234], [196], [274], [192], [278], [128], [193], [165]] ...)
+
+Wait, in this case, the output seems to have a different structure. The main part is similar but ends with another node: (0 (0, 0) (8x5) 0 [[...]]). It looks like perhaps the processing involves creating submatrices or rearranging elements based on some grouping.
+
+Putting it all together, I think the transformation rule might be:
+
+1. For each node:
+   - If it has a data array, process that array by splitting it into smaller matrices (submatrices) whose sizes are determined by its children's dimensions.
+   - Each child's submatrix is filled with elements from the parent's data array in a sequential manner.
+
+For example, in the first input:
+
+- The main node has size 10x10 and two children of size 10x3 each. So, each child will get a portion of the 10x10 data array.
+- Since there are two children, we split the parent's 10x10 into two parts: one is 10x3 (the first part) and another is 10x7 (but since in the output it's only showing up to 10x3 again, maybe it was a typo or something).
+Wait, no. The input has children of size 10x3 each, so total elements per child are 30, but parent's data array is all zeros except for some ones.
+
+In the first output example:
+
+- The main node remains as (10x10) with zeros.
+- One child becomes a 10x10 again filled with zeros? Or maybe it was split differently. Wait, looking back, perhaps each child gets a portion based on their size.
+
+Wait, I think my initial assumption might not be correct. Maybe the processing is about taking the data array of the parent and distributing its elements into children's data arrays according to their dimensions.
+
+So, if a node has two children with sizes 10x3 and 10x7 (adding up to 10 columns), then the parent's data array would be split accordingly: first 3 columns go to child 1, next 7 to child 2. But in the output examples, it seems like some parts are filled with zeros.
+
+Wait, looking at the second input:
+
+- Parent size is 8x5 (columns).
+- Children sizes: each has 4 rows and 5 columns? Or wait, maybe children have dimensions based on their parent's data array.
+But no, in the output, one of the submatrices is 234, which is a single element. Wait, maybe not.
+
+Alternatively, perhaps it's about taking the sum or some aggregation function over certain parts of the matrix.
+
+Wait, let me try to break down the first input:
+
+Parent node: value 0, children are both 0 (with their own data), size 10x10, data array is mostly zeros with a few ones in specific positions. Output shows that one child remains as all zeros (10x10) and another child has some pattern of zeros and ones.
+
+Wait, perhaps each node's children are submatrices whose dimensions add up to the parent's columns.
+
+For example:
+
+- Parent size 10x10: 10 rows and 10 columns.
+- If a child is 10x3, it would take the first 3 columns of the parent's data array. So if the parent had ones in certain columns beyond column 3, those wouldn't be included in this child.
+
+So, for instance, in the input matrix:
+
+The main node has all zeros except for ones starting from column 4 to column 10 (assuming zero-based or one-based). When it's split into a child of size 10x3 and another part implicitly.
+
+But looking at the output, the first child is also 10x10 with all zeros. That doesn't make sense unless that entire child didn't take any data from the parent. So maybe my assumption is wrong.
+
+Alternatively, perhaps each node's children are filled in a way where their size dictates how many elements they get from the parent. For example:
+
+- Parent has N columns.
+- If a child requires M columns, then it takes M columns starting from some point and assigns data to that child.
+
+But I'm getting confused here. Maybe another approach is needed.
+
+Looking at both examples:
+
+In the first input, main node size 10x10 with children of size 10x3 each (total 6 columns). But parent has 10 columns. So how does this fit? Maybe it's about splitting rows instead of columns?
+
+Wait, if a child is 10x3, then perhaps the parent needs to be split into two parts: one with 10 rows and 3 columns for each child.
+
+But in that case, the parent has only 3 columns total (since 2 children x 3 cols each), but it's given as 10x10. So maybe I'm missing something.
+
+Wait, perhaps the size specified is not per node but overall? Or maybe the data array of a parent includes all its children in some way.
+
+This seems too vague. Maybe instead, think about what the transformation does:
+
+- It takes each child and creates new matrices based on their dimensions from the parent.
+- The original parent's matrix elements are distributed into these submatrices in order.
+
+So, for example, if a node has two children with sizes 10x3 and 5x4 (total columns: 3+4=7), then the parent must have at least 7 columns. Its data array would be split accordingly: first 3 columns go to child 1, next 4 to child 2.
+
+But in our first example:
+
+- Parent is 10x10.
+- Children are both 10x3 each (totaling 6 columns). So the parent's 10 rows x (6 columns) would be split into two parts: first 3, then next 3. But that doesn't cover all 10 columns of the parent.
+
+Wait, maybe it's about transposing or something else.
+
+Alternatively, perhaps each child is assigned a block from the parent's data array in row-wise order.
+
+But if I have to process this without more concrete info, maybe I should look for the pattern:
+
+In both examples, when a node has children with certain sizes, its own data array is split into subarrays according to those sizes. Each child gets an "slice" of the parent's data array, starting from where the previous child ended.
+
+So, if parent has columns C1, C2,... Cn, and children have m1, m2,...mk columns respectively (summing up to n), then each child i gets Ci1, Ci2,... Cim_i assigned into its data array in order.
+
+This would make sense. So for the first input:
+
+- Parent has 10x10: so 10 rows and 10 columns.
+- Two children of size 10x3: total columns needed are 6 (3+3).
+But parent has 10 columns, which is more than required.
+
+Wait, maybe it's not about the sum but per row? Or perhaps each child gets a part of each row from the parent.
+
+Alternatively, if I consider that each node can have multiple children and the size refers to rows and columns for each child. Then, the data array of the parent would be split into submatrices where each child's dimensions correspond to how much of the parent is taken.
+
+But without more examples or details, it's challenging to pinpoint exactly what's happening.
+
+Given that both outputs show a similar structure but with different sizes and children, I'll make an assumption: for each node, its data array is split into submatrices corresponding to each child. Each submatrix is filled row-wise from the parent's data array in order.
+
+So, if a parent has two children of size 3x2 and 4x1:
+
+- The parent must have at least (3+4)=7 rows.
+- Its columns would be determined by the maximum column count among its children.
+But I'm not sure.
+
+Alternatively, maybe each child's dimensions are independent. So, for example, if a parent has data array of size M x N, and it has two children with sizes A x B and C x D, then:
+
+- The total rows in the parent must be equal to the sum of rows required by both children.
+But not sure.
+
+Alternatively, perhaps each child's dimensions are independent. So for example, if a parent has data array MxN, it can have multiple children with any size as long as their columns add up appropriately.
+
+Wait, maybe I should think about how to represent this in code:
+
+Suppose we have a tree where each node is defined by its value, the number of children, and for each child, its dimensions (rows and columns). The data array associated with the parent is split into chunks based on these dimensions.
+
+For instance:
+
+- Parent: rows = R, cols = C
+- Children: c1: r1 x c1_cols, c2: r2 x c2_cols,... etc.
+The total columns needed for children would be sum(c1_cols + c2_cols + ...). But parent has C columns. So probably, we need to make sure that the children's column counts do not exceed the parent's.
+
+But since in the first example:
+
+Parent is 10x10
+Two children are each 10x3: so sum of child cols = 6 <= 10
+
+Each child would get a slice of 10 rows x 3 columns from the parent. But how? Since both children need to take columns, perhaps we split the parent's columns into parts.
+
+First child takes first 3 columns (cols 1-3), second child takes next 3 (cols 4-6). The remaining 4 cols are unused or maybe part of another step?
+
+But in the output, each child is a matrix with their own dimensions. So perhaps it's about extracting blocks from the parent's data array.
+
+Alternatively, for each row of the parent, we assign consecutive elements to children based on their column counts.
+
+In code terms:
+
+def process_parent(parent_data, children_sizes):
+    # children_sizes is a list [(cols1, rows1?), ...]
+    # but probably need to know how many columns each child takes
+    # assuming that for each child, the number of cols they take from parent's data array.
+    # then split the data into chunks and assign to each child.
+
+But perhaps more accurately:
+
+Suppose a node has children with dimensions (rows1, cols1), (rows2, cols2)... Then, the data is assigned as follows: for each row in the parent, we take 'cols' equal to sum(cols1 + cols2...). Wait no.
+
+Alternatively, maybe it's per column. Each child takes a certain number of columns from the parent, and those are filled with consecutive rows.
+
+Wait, perhaps the data array is treated as a 2D matrix (M x N), where M is rows, N is cols.
+
+Each child i has r_i x c_i dimensions.
+
+Then, for each child:
+
+- The starting column in the parent's data is sum of previous children's columns.
+- The child takes 'c_i' columns from that starting point.
+- All rows (M) are included in this submatrix.
+
+But wait: if the parent has N columns and we have multiple children with c1 + c2 + ...ck <= N, then each child can take a portion of the parent's data. But how to split.
+
+Wait, perhaps it's as simple as taking blocks from the parent's columns:
+
+For example:
+
+Parent is 5 rows x 8 cols.
+Children are two nodes: first child has size 3x4, second has size 2x4 (total columns=6 <=8)
+
+So for each row in parent (5), take first 4 cols for child1 and next 4 for child2.
+
+This way:
+
+Child1's data is rows 0-4, cols 0-3
+Child2's data is rows 0-4, cols 4-7
+
+But what if the total columns of children exceed parent's? Then some part would be lost or perhaps it's an error.
+
+In any case, this seems to make sense. So for each row in the parent, we split into chunks based on the children's column requirements and assign them accordingly.
+
+So applying this logic:
+
+Looking at first example:
+
+Parent: 10x10 (rows x columns)
+Children: two nodes, each size 3 cols x some rows? Wait no, wait. The child sizes are probably in terms of how many rows and columns their own data array is.
+
+Wait, maybe the children's sizes refer to their data matrix dimensions, which could be any. So for example:
+
+Child1 has a data matrix of 5x3: meaning it has 5 rows and 3 columns.
+Child2 has a data matrix of 4x6: 4 rows and 6 columns.
+
+But if the parent's data is M x N, then when assigning these children, perhaps the total number of rows in all children should be equal to M?
+
+Wait no. Because if each child can have any number of rows as long as their own data arrays are filled from the parent's data array.
+
+This seems complex without knowing more about how exactly the assignment works.
+
+Alternatively, maybe it's treating all children as having 1 row but multiple columns: like for each column in parent, assign to a child. But that would require the number of children equal to the number of columns, which may not be the case here.
+
+Given my confusion and time constraints, I think the best assumption is that when processing a node's data into its children, it splits its own columns equally among the children based on their column requirements.
+
+Thus, each child receives an equal portion of the parent's columns in order. So for example:
+
+Parent has 10 columns.
+
+Child1: needs 3 cols
+Child2: needs 3 cols
+
+So Parent's first 3 cols go to Child1, next 3 to Child2, and so on.
+
+In code terms:
+
+def process_node(parent_data):
+    # get the children of this node
+    children = self.children
+    total_columns_needed = sum(child.get_columns() for child in children)
+    if parent_data.shape[1] < total_columns_needed:
+        raise error("Not enough columns")
+    # else, split the data into parts based on each child's column requirement
+    splits = []
+    current_col = 0
+    for child in children:
+        cols_needed = child.get_columns()
+        end_col = current_col + cols_needed
+        splits.append(parent_data[:, current_col:end_col])
+        current_col = end_col
+    # assign these slices to each child's data
+    for i, split in enumerate(splits):
+        children[i].data = split
+    return self
+
+Wait, but this is assuming that the columns are assigned per row.
+
+Alternatively, perhaps it's as simple as taking all rows of the parent and assigning consecutive columns to each child. For example:
+
+Each column from the parent is assigned to a single child based on their order in children list.
+
+But I'm not entirely sure without more context.
+
+Given this uncertainty, but considering that in the first example, two children with 3 columns each would take up 6 columns out of 10, leaving 4 unused or perhaps part of another step. So it's possible that when a node has multiple children, their data is taken from consecutive columns of the parent.
+
+Therefore, probably, for each child in the current node:
+
+- The child takes a block of 'cols' number of columns (and all rows) from the parent.
+- These blocks are assigned to each child in order.
+
+So if the total cols requested by children sum exceeds parent's cols, it would cause an error. But perhaps that's handled elsewhere.
+
+Given that, I think this is how it works: for a node with multiple children, each takes a consecutive block of columns from the parent's data array.
+</think>
+
+When processing a node to distribute its data among its children, each child receives a block of columns from the parent's data. Each child gets an equal portion based on their column requirements.
+
+**Answer:**  
+The process assigns blocks of columns from the parent node's data to each child node in sequence. Each child receives all rows but only the specified number of columns, ensuring that the total columns requested by children do not exceed the parent's available columns.

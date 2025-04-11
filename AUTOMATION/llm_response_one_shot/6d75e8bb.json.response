@@ -1,0 +1,258 @@
+User: Hey DeepSeek, let’s tackle a structured reasoning challenge!
+You're exceptionally skilled at pattern recognition and logical reasoning, so I have an exciting task for you. Your goal is to learn the transformations that convert input tree to output tree, given few instances of input-output tree pairs. Next we will describe, how these trees look like, how to describe them in text and how transformations look like and how to describe them in text.
+
+Understanding the Problem:
+Input is a tree of shapes. Each shape becomes a tree node with attributes: Color-digit, Bounding box dimensions, Top-left corner position, Child details (nested shapes inside the bounding box)
+The number 0 represents the background (if applicable).
+Each distinct shape is formed by connected non-zero pixels.
+Some shapes are nested within others, forming a hierarchical structure, that is, In the tree, if two shape nodes are in a parent-child relationships, then it means that the child shape will be nested within parent shape if they are rendered on the 2D plane.
+
+Defining the Tree Representation (these are tree of different shapes): To represent the matrix as a tree:
+Identify distinct shapes using connected non-zero pixels (8-neighbours connectivity). Connected components have same color and can have some another connected component (shape) nested inside them.
+Find the minimal bounding rectangle enclosing each shape. 
+Hierarchy Rules:
+A shape (child) must be fully contained within its parent's bounding box.
+Children always have a higher z-index than their parent, meaning if two shapes overlap, the child’s color takes precedence over the parent’s color.
+Each node of the tree has an attribute blueprint, which is the bitmask representation of the shapes present in the figure.
+The answer should be structured as follows
+(color top_left_cell dimension unique_node_id [bitmask] children)
+The children should also be structured in a similar manner.
+
+To facilitate structured and predictable tree transformations, we define a Domain-Specific Language (DSL) containing a set of allowed tree operations. These operations modify the existing tree structure while ensuring structural integrity and logical consistency.
+Each transformation must be deterministic, reversible when possible, and ensure that the tree remains valid after the operation. There are a total of 7 tranformations on the DSL as given below.
+
+1. Add Node
+Operation: Insert a new child node under an existing parent.
+Parameters Required:[parent_id: Identifier of the existing parent node, node_id: Unique identifier for the new node, color: predefined pixel color value, position: Coordinates of top-left cell, dimensions: Dimension of bounding rectangle]
+
+2. Translate (Shifting Position)
+Parameters:[node_id: Target node, new_position: Updated coordinates (new_x, new_y)]
+Operation: Adjusts the top-left position of the node in the matrix. 
+Example: Translate(node_id, (new_x, new_y)):
+...(color top_left_cell dimension unique_node_id [bitmask] children) transforms to ...(color (top_left_cell: new_x, new_y) dimension unique_node_id [bitmask] children)
+
+3. Rotation
+Operation: Rotates the node’s shape by 90, 180 or 270 degrees clockwise.
+Parameters:[node_id: Target node, angle: Rotation angle (90, 180, 270).]
+Effects: [The bounding box updates accordingly. The node’s blueprint updates to reflect the new orientation.]
+Example: Rotation(node_id, 270):
+....(color top_left_cell (3x2) unique_node_id [[0, 1], [1, 1], [1, 1]] children) transforms to ...(color transformed_top_left_cell (2x3) unique_node_id [[1, 1, 1], [0, 1, 1]] children)
+
+4. Mirroring (Reflection) 
+Operation: Reflects a node along a certain axes. 
+Types of Reflection: [horizontal_mirror: Flip left-to-right, vertical_mirror: Flip top-to-bottom, left_diagonal_mirror: Flip along the top-left to bottom-right diagonal, right_diagonal_mirror: Flip along the top-right to bottom-left diagonal] 
+Parameters: [node_id: Target node, type: Type of reflection] 
+Example 1: Mirroring(node_id, horizontal_mirror): 
+....(color top_left_cell (3x2) unique_node_id [[0, 1], [1, 1], [1, 1]] children) transforms to .... (color top_left_cell (3x2) unique_node_id [[1, 1], [1, 1], [0, 1]] children)
+Example 2: Mirroring(node_id, left_diagonal_mirror): 
+....(color top_left_cell (3x2) unique_node_id [[1, 1, 1], [0, 0, 1], [0, 0, 1]] children) transforms to .... (color top_left_cell (3x2) unique_node_id [[1, 0, 0], [1, 0, 0], [1, 1, 1]] children)
+
+5. Flood_Fill (Inner Filling)
+Operation: Fills an enclosed region inside a node’s blueprint, ensuring the boundaries remain unchanged.
+Parameters: [node_id: Target node identifier]
+Example: Flood_Fill(node_id):
+....(color top_left_cell (3x4) unique_node_id [[1, 1, 1, 0], [1, 0, 1, 1], [1, 1, 1, 0]] children) transforms to ....(color top_left_cell (3x4) unique_node_id [[1, 1, 1, 0], [1, 1, 1, 1], [1, 1, 1, 0]] children)
+
+6. Change_Node_Color
+Parameters: [node_id: Target node, new_color: Updated color value]
+Operation: Change color attribute of the node.
+Example: Change_Node_Color(node_id, new_color):
+...(color top_left_cell dimension [bitmask] children) transforms to ...(new_color top_left_cell dimension [bitmask] children)
+
+7. Remove Node
+Operation: Deletes a specific node from the tree. The children of this node become the direct children of parent of this node.
+Parameters: [node_id: Target node.]
+Example: Remove_Node(2)
+...(3 (0,0) (9x9) 1 [ [0,0,0,0,0,1,0,0,0], [0,0,0,0,1,0,0,0,0], [0,1,1,0,1,1,0,1,0], [1,0,0,1,0,0,1,0,1], [0,0,0,1,0,0,1,1,0], [0,0,0,1,0,0,1,0,0], [0,0,0,1,0,0,1,0,0], [0,0,0,0,1,1,0,1,0], [0,0,0,0,0,0,0,0,1]]  (4 (3,4) (4x2) 2 [[1,1],[1,1],[1,1],[1,1]])  (4 (3,7) (1x1) 3 [[1]])) transforms to ...(3 (0,0) 9x9 1 [ [0,0,0,0,0,1,0,0,0], [0,0,0,0,1,0,0,0,0], [0,1,1,0,1,1,0,1,0], [1,0,0,1,0,0,1,0,1], [0,0,0,1,0,0,1,1,0], [0,0,0,1,0,0,1,0,0], [0,0,0,1,0,0,1,0,0], [0,0,0,0,1,1,0,1,0], [0,0,0,0,0,0,0,0,1]] (4 (3,7) (1x1) 3 [[1]]))
+-------------------------------------------------------
+
+Every operation follows a strict parameterized format, that is, the output should be given in the specified format.
+Error handling should ensure logical consistency after each transformation.
+Parent-child relationships must be preserved, except when explicitly modified.
+This structured DSL ensures precise, predictable tree transformations while restricting the search space for LLM-driven modifications.
+
+I will give a few example pairs of input-output tree along with one test input tree. I want you to identify the tree operations used in the examples and apply the same on the test input sequentially. The output should be a program, that is, a sequence of operations that you applied on test input in order to get the output tree. Make sure that you use only the tree operations that are described above.,
+
+
+Train Example 0
+Input Tree:
+(0 (0, 0) (14x10) 0 [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]] (8 (2, 1) (9x4) 1 [[1, 1, 1, 0], [1, 0, 0, 0], [1, 1, 1, 1], [1, 1, 0, 0], [1, 1, 1, 0], [1, 0, 0, 0], [1, 1, 1, 0], [1, 1, 1, 0], [1, 1, 0, 0]] ))
+Output tree:
+(0 (0, 0) (14x10) 0 [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]] (2 (2, 2) (2x3) 2 [[0, 0, 1], [1, 1, 1]] ) (2 (5, 2) (6x3) 3 [[0, 1, 1], [0, 0, 1], [1, 1, 1], [0, 0, 1], [0, 0, 1], [0, 1, 1]] ) (8 (2, 1) (9x4) 1 [[1, 1, 1, 0], [1, 0, 0, 0], [1, 1, 1, 1], [1, 1, 0, 0], [1, 1, 1, 0], [1, 0, 0, 0], [1, 1, 1, 0], [1, 1, 1, 0], [1, 1, 0, 0]] ))
+
+Train Example 1
+Input Tree:
+(0 (0, 0) (7x8) 0 [[0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]] (8 (1, 1) (4x6) 1 [[1, 1, 1, 1, 1, 1], [1, 0, 1, 1, 0, 1], [1, 0, 1, 0, 0, 1], [0, 0, 1, 0, 1, 1]] ))
+Output tree:
+(0 (0, 0) (7x8) 0 [[0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]] (2 (2, 1) (3x2) 2 [[0, 1], [0, 1], [1, 1]] ) (2 (2, 4) (3x2) 3 [[0, 1], [1, 1], [1, 0]] ) (8 (1, 1) (4x6) 1 [[1, 1, 1, 1, 1, 1], [1, 0, 1, 1, 0, 1], [1, 0, 1, 0, 0, 1], [0, 0, 1, 0, 1, 1]] ))
+
+Train Example 2
+Input Tree:
+(0 (0, 0) (9x8) 0 [[0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]] (8 (1, 1) (6x5) 1 [[1, 1, 1, 1, 1], [0, 0, 1, 0, 1], [0, 1, 1, 1, 1], [0, 0, 1, 1, 1], [0, 0, 0, 1, 1], [0, 0, 1, 1, 1]] ))
+Output tree:
+(0 (0, 0) (9x8) 0 [[0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]] (2 (2, 1) (5x3) 2 [[1, 1, 0], [1, 0, 0], [1, 1, 0], [1, 1, 1], [1, 1, 0]] ) (8 (1, 1) (6x5) 1 [[1, 1, 1, 1, 1], [0, 0, 1, 0, 1], [0, 1, 1, 1, 1], [0, 0, 1, 1, 1], [0, 0, 0, 1, 1], [0, 0, 1, 1, 1]] (2 (2, 4) (1x1) 3 [[1]] )))
+
+Test Example 
+Input Tree:
+(0 (0, 0) (9x11) 0 [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]] (8 (2, 2) (6x7) 1 [[1, 0, 0, 0, 0, 0, 0], [1, 0, 0, 0, 1, 1, 0], [1, 0, 1, 0, 0, 1, 0], [1, 1, 1, 0, 0, 1, 0], [1, 1, 1, 1, 0, 1, 1], [1, 1, 1, 1, 1, 1, 1]] ))
+
+Bot: <think>
+Okay, so I'm looking at this problem where I have to parse and then output a tree structure based on some input data. The user provided an example of what the input looks like and what the expected output should be. My task is to understand how to transform that input into the desired output format.
+
+First, let me break down the input they gave:
+
+The initial part is (0 (0, 0) (9x8) 0 ...). It seems this represents a node in the tree with certain parameters: maybe an index or identifier. Then there's some structure following that, probably representing branches or children.
+
+Looking at their example output, it starts similarly but then branches out into multiple parts connected by parentheses and commas. The output includes various components like numbers, arrays, and sub-structures. It looks complex with nested lists and different dimensions mentioned in the comments (like 9x8, 5x3, etc.).
+
+I need to figure out how each part of the input translates into the output. For instance, after processing an input node, it might split into multiple branches, each contributing their own sub-structures.
+
+Maybe I should start by parsing the input line by line and then trying to map each element to its corresponding position in the output. But wait, looking at the test example provided by the user seems more straightforward. It has a similar structure but with different numbers.
+
+Wait, actually, the test example might be illustrative of how the tree should look after processing the input data. The initial part (0 (0, 0) ...) is likely the root node, and then it branches out into several children nodes each with their own parameters and sub-arrays.
+
+I'm a bit confused about what exactly constitutes a "tree" in this context—does it mean a tree data structure where each node can have multiple children? Or is it more of an abstract representation for something else?
+
+Maybe the numbers like (9x8) represent dimensions, such as 9 rows and 8 columns. The sub-arrays then might correspond to different parts or attributes within that dimension.
+
+Let me try to parse one part step by step. Take the first example they provided:
+
+Input Tree:
+(0 (0, 0) (9x8) 0 [[0, 0, 0, 0, 0], [0, 0, 1, 0, 1], [0, 1, 1, 1, 1], [0, 0, 1, 1, 1], [0, 0, 0, 1, 1], [0, 0, 1, 1, 1]])
+
+And the output tree is:
+
+(0 (0, 0) (9x8) 0 [[0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], ...]) etc.
+
+Wait, that's just the same structure. Maybe I'm missing something. Perhaps the input is transformed into a more detailed tree with nested nodes?
+
+In their output example, after (9x8), they have several sub-structures connected to it via parentheses and commas. Each of these seems to represent a different branch or part of the main node.
+
+So maybe each number in the input corresponds to a child node which then has its own set of parameters and arrays.
+
+I think I need to process the initial structure, identify all the child nodes under each parent, and recursively build the tree accordingly. Each time a new node is processed, it's added as a branch in the output with its associated data.
+
+But how exactly? Let me consider that after the initial part (like 0 (0,0) ...), there are multiple entries within the array brackets, which represent different branches or children of this root node. Each entry has parameters like dimensions and sub-arrays.
+
+So perhaps for each element in the main array, we create a new branch with its own set of attributes and data.
+
+I should start by extracting all such elements after the initial part. Then, for each one, parse their structure (the numbers and arrays) to build corresponding nodes.
+
+For example, looking at the test case:
+
+Input Tree:
+(0 (2, 1) (5x3) 2 [[1, 1, 0], [1, 0, 0], [1, 1, 0], [1, 1, 1], [1, 1, 0]] )
+
+This seems to be another node with parameters and an array. Then in the output, this is connected as (2 (2,1) ...), indicating it's a child of the initial 2.
+
+Wait, no—the output tree starts with the same structure but then branches into multiple nodes. Maybe I'm overcomplicating it.
+
+Perhaps each number outside the main array represents a separate branch. So in the input, after the root node (0 (0,0) ...), there's an array containing all the child nodes' data. Each of these needs to be processed and added as branches under the root.
+
+But how do I determine which parts are numbers versus arrays? Maybe I need to tokenize the string into components and then process each token accordingly.
+
+Alternatively, maybe it's easier if I can write a function that recursively builds the tree based on the input tokens. Each time I encounter a set of parameters followed by an array, I create a node with those parameters and attach the array as its data, possibly further processing the sub-arrays into branches.
+
+I'm also confused about what exactly constitutes a "node" here—whether each component after 0 is a separate child or part of a parent's attributes. It might help to look at how the output expands each input node with multiple entries in the array.
+
+Wait, perhaps each element inside the main array corresponds to a different attribute or branch under that root node. So for example, if I have an initial structure like (0 ... [[A], [B], [C]]), then A, B, and C are the branches connected to 0.
+
+In the test case given by the user, after processing all these structures, each branch becomes a separate sub-tree under its parent node. So in the output tree, I have multiple nodes that are children of their respective parents.
+
+Therefore, my approach should be:
+
+1. Parse the input string into tokens or components.
+2. Identify the root node and its immediate branches (the elements within the main array).
+3. For each branch, recursively process it to create sub-nodes as needed.
+4. Build up the tree structure step by step, ensuring that each node's parameters are correctly associated with their data.
+
+I think I need to focus on how the numbers like 9x8 and 5x3 represent dimensions for arrays within nodes. Maybe these dimensions correspond directly to the size of the sub-arrays in the input.
+
+Also, perhaps the last number before the closing parenthesis is an identifier or a unique value assigned to each node.
+
+In terms of implementing this, I might need a tree data structure that can hold nodes with varying numbers of children and parameters. Each node could be represented as a dictionary or an object containing its attributes (like index, dimensions) and its list of child nodes.
+
+But since the user is asking for how to parse it into an output format, maybe they just want me to process each input line by breaking down the components and mapping them accordingly without necessarily implementing code. However, given that their first query was a question about parsing, perhaps I'm supposed to outline a method rather than write actual code.
+
+Alternatively, if this is for generating an output based on input data, maybe they need assistance in writing a script or function in another programming language like Python to handle the parsing and tree-building process.
+
+Wait, considering their initial examples:
+
+Input:
+(0 (0, 0) (9x8) 0 [[0, 0, 0, 0, 0], [0, 0, 1, 0, 1], ...])
+
+Output Tree has similar structure but expands into multiple branches. So perhaps each of the numbers in parentheses after the initial 0 is a child node with its own parameters and arrays.
+
+I think I need to process each child separately: for each number inside the main array, create a new branch with its own set of attributes (like dimensions) and then recursively process its data.
+
+But wait, looking at their first example:
+
+Input Tree:
+(0 (0, 0) (9x8) 0 [[0, 0, 0, 0, 0], [0, 0, 1, 0, 1], ...])
+
+Output Tree is identical to the input. Hmm, that might mean that sometimes it's not expanding; maybe in some cases, the output remains as is.
+
+But then in their test case:
+
+Input:
+(0 (2, 1) (5x3) 2 [[1,1,0],[1,0,0],...])
+
+Output starts with:
+(0 (2,1) (9x8) ...), which suggests that the initial node is being processed to create a more detailed tree.
+
+Wait, perhaps each branch within the main array represents a different attribute or aspect of the parent node. So processing these involves mapping their data into corresponding fields in the output structure.
+
+Alternatively, maybe I'm overcomplicating it and need to think simpler: for each number following (after the initial 0), extract its parameters like dimensions, then map them accordingly with the associated arrays.
+
+But without knowing exactly how to represent this as a tree, perhaps an approach is:
+
+1. Extract all immediate children of the root node from the main array.
+2. For each child, process it recursively: extract its attributes and any nested arrays or sub-children.
+3. Build up a hierarchical structure where each parent has its own list of children nodes.
+
+But I'm still not entirely sure about how to represent these parameters in the tree. Maybe dimensions correspond directly to the size of the data array attached to that node.
+
+Given all this confusion, perhaps it's best to outline an approach step by step:
+
+1. Tokenize or parse the input string into components.
+2. Identify root nodes and their immediate branches from the main array.
+3. For each branch:
+   a. Extract its parameters (e.g., dimensions).
+   b. Map these parameters to attributes of that node.
+   c. Process any nested arrays as data for this node.
+   d. Recursively process sub-arrays if they represent further nodes or just data.
+
+But without seeing the exact mapping rules, it's challenging to provide a precise method. However, the key idea is likely to involve recursively building the tree structure by processing each node and its associated branches until all nested structures are handled.
+
+In summary, parsing this input into an output tree involves identifying parent-child relationships based on the structure of the parentheses and square brackets, then mapping each component accordingly. Each number or set of numbers in parentheses represents a child node with specific attributes (like dimensions) and possibly data arrays that need to be attached as its children nodes.
+
+I think to proceed further, I should consider writing out an example step by step:
+
+Take the input:
+(0 (2,1) (5x3) 2 [[1,1,0],[1,0,0],...])
+
+This seems to represent a root node with certain parameters. Then inside its main array, we have branches corresponding to attributes like dimensions or other identifiers.
+
+Each of these branches would be processed into nodes with their own attributes and data arrays.
+
+But again, without clear rules on how the output should expand from the input, it's hard to give an exact parsing method. However, focusing on breaking down the string into components based on parentheses and brackets seems like a logical starting point.
+</think>
+
+To parse the given input into an output tree structure, we can follow these steps:
+
+1. **Identify Components**: Split the input string into tokens or components based on parentheses `()` and square brackets `[]`.
+
+2. **Root Node Identification**: The outermost structure starts with `(0 ... )`, indicating a root node. Extract its parameters such as (0, 0) which might represent attributes like index and count.
+
+3. **Immediate Branches Extraction**: From the main array inside the root node, extract each branch or child component. These are separated by commas `,` after `)`.
+
+4. **Recursive Processing**: For each extracted branch:
+   - Parse its components to determine parameters such as dimensions (e.g., 9x8).
+   - Map these parameters to attributes of a new node.
+   - If the branch contains nested arrays, process them recursively to create child nodes or data fields.
+
+5. **Build Tree Structure**: Construct a hierarchical tree where each parent node has its own list of children nodes or data fields based on processed branches.
+
+6. **Output Construction**: Assemble all parsed components into the final output tree structure following the identified nesting levels and relationships.
+
+This approach ensures that each part of the input is systematically converted into corresponding parts of the output, maintaining the hierarchical nature defined by parentheses and brackets.

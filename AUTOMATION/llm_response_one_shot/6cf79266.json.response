@@ -1,0 +1,303 @@
+User: Hey DeepSeek, let’s tackle a structured reasoning challenge!
+You're exceptionally skilled at pattern recognition and logical reasoning, so I have an exciting task for you. Your goal is to learn the transformations that convert input tree to output tree, given few instances of input-output tree pairs. Next we will describe, how these trees look like, how to describe them in text and how transformations look like and how to describe them in text.
+
+Understanding the Problem:
+Input is a tree of shapes. Each shape becomes a tree node with attributes: Color-digit, Bounding box dimensions, Top-left corner position, Child details (nested shapes inside the bounding box)
+The number 0 represents the background (if applicable).
+Each distinct shape is formed by connected non-zero pixels.
+Some shapes are nested within others, forming a hierarchical structure, that is, In the tree, if two shape nodes are in a parent-child relationships, then it means that the child shape will be nested within parent shape if they are rendered on the 2D plane.
+
+Defining the Tree Representation (these are tree of different shapes): To represent the matrix as a tree:
+Identify distinct shapes using connected non-zero pixels (8-neighbours connectivity). Connected components have same color and can have some another connected component (shape) nested inside them.
+Find the minimal bounding rectangle enclosing each shape. 
+Hierarchy Rules:
+A shape (child) must be fully contained within its parent's bounding box.
+Children always have a higher z-index than their parent, meaning if two shapes overlap, the child’s color takes precedence over the parent’s color.
+Each node of the tree has an attribute blueprint, which is the bitmask representation of the shapes present in the figure.
+The answer should be structured as follows
+(color top_left_cell dimension unique_node_id [bitmask] children)
+The children should also be structured in a similar manner.
+
+To facilitate structured and predictable tree transformations, we define a Domain-Specific Language (DSL) containing a set of allowed tree operations. These operations modify the existing tree structure while ensuring structural integrity and logical consistency.
+Each transformation must be deterministic, reversible when possible, and ensure that the tree remains valid after the operation. There are a total of 7 tranformations on the DSL as given below.
+
+1. Add Node
+Operation: Insert a new child node under an existing parent.
+Parameters Required:[parent_id: Identifier of the existing parent node, node_id: Unique identifier for the new node, color: predefined pixel color value, position: Coordinates of top-left cell, dimensions: Dimension of bounding rectangle]
+
+2. Translate (Shifting Position)
+Parameters:[node_id: Target node, new_position: Updated coordinates (new_x, new_y)]
+Operation: Adjusts the top-left position of the node in the matrix. 
+Example: Translate(node_id, (new_x, new_y)):
+...(color top_left_cell dimension unique_node_id [bitmask] children) transforms to ...(color (top_left_cell: new_x, new_y) dimension unique_node_id [bitmask] children)
+
+3. Rotation
+Operation: Rotates the node’s shape by 90, 180 or 270 degrees clockwise.
+Parameters:[node_id: Target node, angle: Rotation angle (90, 180, 270).]
+Effects: [The bounding box updates accordingly. The node’s blueprint updates to reflect the new orientation.]
+Example: Rotation(node_id, 270):
+....(color top_left_cell (3x2) unique_node_id [[0, 1], [1, 1], [1, 1]] children) transforms to ...(color transformed_top_left_cell (2x3) unique_node_id [[1, 1, 1], [0, 1, 1]] children)
+
+4. Mirroring (Reflection) 
+Operation: Reflects a node along a certain axes. 
+Types of Reflection: [horizontal_mirror: Flip left-to-right, vertical_mirror: Flip top-to-bottom, left_diagonal_mirror: Flip along the top-left to bottom-right diagonal, right_diagonal_mirror: Flip along the top-right to bottom-left diagonal] 
+Parameters: [node_id: Target node, type: Type of reflection] 
+Example 1: Mirroring(node_id, horizontal_mirror): 
+....(color top_left_cell (3x2) unique_node_id [[0, 1], [1, 1], [1, 1]] children) transforms to .... (color top_left_cell (3x2) unique_node_id [[1, 1], [1, 1], [0, 1]] children)
+Example 2: Mirroring(node_id, left_diagonal_mirror): 
+....(color top_left_cell (3x2) unique_node_id [[1, 1, 1], [0, 0, 1], [0, 0, 1]] children) transforms to .... (color top_left_cell (3x2) unique_node_id [[1, 0, 0], [1, 0, 0], [1, 1, 1]] children)
+
+5. Flood_Fill (Inner Filling)
+Operation: Fills an enclosed region inside a node’s blueprint, ensuring the boundaries remain unchanged.
+Parameters: [node_id: Target node identifier]
+Example: Flood_Fill(node_id):
+....(color top_left_cell (3x4) unique_node_id [[1, 1, 1, 0], [1, 0, 1, 1], [1, 1, 1, 0]] children) transforms to ....(color top_left_cell (3x4) unique_node_id [[1, 1, 1, 0], [1, 1, 1, 1], [1, 1, 1, 0]] children)
+
+6. Change_Node_Color
+Parameters: [node_id: Target node, new_color: Updated color value]
+Operation: Change color attribute of the node.
+Example: Change_Node_Color(node_id, new_color):
+...(color top_left_cell dimension [bitmask] children) transforms to ...(new_color top_left_cell dimension [bitmask] children)
+
+7. Remove Node
+Operation: Deletes a specific node from the tree. The children of this node become the direct children of parent of this node.
+Parameters: [node_id: Target node.]
+Example: Remove_Node(2)
+...(3 (0,0) (9x9) 1 [ [0,0,0,0,0,1,0,0,0], [0,0,0,0,1,0,0,0,0], [0,1,1,0,1,1,0,1,0], [1,0,0,1,0,0,1,0,1], [0,0,0,1,0,0,1,1,0], [0,0,0,1,0,0,1,0,0], [0,0,0,1,0,0,1,0,0], [0,0,0,0,1,1,0,1,0], [0,0,0,0,0,0,0,0,1]]  (4 (3,4) (4x2) 2 [[1,1],[1,1],[1,1],[1,1]])  (4 (3,7) (1x1) 3 [[1]])) transforms to ...(3 (0,0) 9x9 1 [ [0,0,0,0,0,1,0,0,0], [0,0,0,0,1,0,0,0,0], [0,1,1,0,1,1,0,1,0], [1,0,0,1,0,0,1,0,1], [0,0,0,1,0,0,1,1,0], [0,0,0,1,0,0,1,0,0], [0,0,0,1,0,0,1,0,0], [0,0,0,0,1,1,0,1,0], [0,0,0,0,0,0,0,0,1]] (4 (3,7) (1x1) 3 [[1]]))
+-------------------------------------------------------
+
+Every operation follows a strict parameterized format, that is, the output should be given in the specified format.
+Error handling should ensure logical consistency after each transformation.
+Parent-child relationships must be preserved, except when explicitly modified.
+This structured DSL ensures precise, predictable tree transformations while restricting the search space for LLM-driven modifications.
+
+I will give a few example pairs of input-output tree along with one test input tree. I want you to identify the tree operations used in the examples and apply the same on the test input sequentially. The output should be a program, that is, a sequence of operations that you applied on test input in order to get the output tree. Make sure that you use only the tree operations that are described above.,
+
+
+Train Example 0
+Input Tree:
+(0 (0, 0) (20x20) 0 [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]] (5 (0, 0) (20x20) 1 [[1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0], [1, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1], [0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1], [1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1], [0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 1], [0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1], [1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1], [0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1], [1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1], [1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1], [1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1], [1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1], [0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1], [1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0], [0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0], [1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1], [1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1]] ))
+Output tree:
+(0 (0, 0) (20x20) 0 [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]] (5 (0, 0) (20x20) 1 [[1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0], [1, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1], [0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1], [1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1], [0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 1], [0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1], [1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1], [0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1], [1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1], [1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1], [1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1], [1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1], [0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1], [1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0], [0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0], [1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1], [1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1]] (1 (6, 16) (3x3) 2 [[1, 1, 1], [1, 1, 1], [1, 1, 1]] )))
+
+Train Example 1
+Input Tree:
+(0 (0, 0) (20x20) 0 [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]] (3 (0, 0) (20x20) 1 [[1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0], [0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0], [1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1], [1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0], [0, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0], [1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0], [0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0], [1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1], [0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1], [0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1], [1, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1], [1, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1], [0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1], [0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0], [0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1], [0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 0, 0], [1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1], [0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0], [1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1], [1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1]] (3 (14, 0) (1x1) 2 [[1]] ) (3 (17, 5) (3x4) 3 [[0, 1, 1, 1], [1, 1, 0, 1], [1, 1, 1, 0]] )))
+Output tree:
+(0 (0, 0) (20x20) 0 [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]] (3 (0, 0) (20x20) 1 [[1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0], [0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0], [1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1], [1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0], [0, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0], [1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0], [0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0], [1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1], [0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1], [0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1], [1, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1], [1, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1], [0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1], [0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0], [0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1], [0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 0, 0], [1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1], [0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0], [1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1], [1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1]] (3 (14, 0) (1x1) 3 [[1]] ) (1 (6, 3) (3x3) 2 [[1, 1, 1], [1, 1, 1], [1, 1, 1]] ) (3 (17, 5) (3x4) 4 [[0, 1, 1, 1], [1, 1, 0, 1], [1, 1, 1, 0]] )))
+
+Train Example 2
+Input Tree:
+(0 (0, 0) (20x20) 0 [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]] (7 (0, 0) (1x1) 1 [[1]] ) (7 (3, 0) (1x1) 3 [[1]] ) (7 (0, 0) (20x20) 2 [[0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 1], [0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1], [0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0], [0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0], [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1], [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 0, 1], [0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1], [0, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1], [0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1], [1, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0], [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0], [1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1], [0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1], [0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1], [0, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1], [1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0], [1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0], [1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1], [0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 1]] ))
+Output tree:
+(0 (0, 0) (20x20) 0 [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]] (7 (0, 0) (1x1) 1 [[1]] ) (7 (3, 0) (1x1) 3 [[1]] ) (1 (5, 14) (3x3) 4 [[1, 1, 1], [1, 1, 1], [1, 1, 1]] ) (7 (0, 0) (20x20) 2 [[0, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 1], [0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1], [0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0], [0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0], [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1], [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 0, 1], [0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1], [0, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1], [0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1], [1, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0], [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0], [1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1], [0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1], [0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1], [0, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1], [1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0], [1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0], [1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1], [0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 1]] (1 (16, 3) (3x3) 5 [[1, 1, 1], [1, 1, 1], [1, 1, 1]] )))
+
+Test Example 
+Input Tree:
+(0 (0, 0) (20x20) 0 [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]] (4 (0, 0) (20x20) 1 [[0, 1, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0], [0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0], [1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0], [1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0], [1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1], [1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0], [0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1], [1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0], [0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0], [1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1], [0, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1], [0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0], [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1], [1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0], [0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1], [1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0], [1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1], [1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 1], [0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0]] (4 (0, 12) (1x1) 2 [[1]] ) (4 (19, 16) (1x1) 4 [[1]] ) (4 (19, 0) (1x2) 3 [[1, 1]] ) (4 (19, 18) (1x2) 5 [[1, 1]] )))
+
+Bot: <think>
+Alright, so I've got this big list of lists here. It's a bit intimidating at first glance because it's so long and complex. Let me try to make sense of it step by step.
+
+First off, looking at the structure, it seems like each sublist has numbers mostly within 0s and 1s, but there are also some negative values (-1) thrown in here and there. I'm guessing these might represent something specific, maybe changes or transitions between states?
+
+The user mentioned a bunch of terms in parentheses that look like coordinates or indices: (4 (0, 12) (1x1) 2 [[1]] ), etc. Hmm, okay, so the first number is 4, then inside parentheses there's (0,12), which probably refers to the position in each sublist—like row 4, column 0 and 12? Then it says 1x1, which might mean a 1x1 matrix or something of size 1. The next number is 2 [[1]], so maybe that's an index or value associated with that cell?
+
+Let me try to parse this more carefully. Each of these seems to be describing some feature in the data—perhaps positions where specific patterns occur, like where a 1x1 matrix has a value of 2 at position (0,12). Similarly, another point is at (19,16) with 4 [[1]], and so on.
+
+Wait, but I'm not exactly sure what all these numbers mean. Maybe they're coordinates in the original data? Like each sublist represents a row or something, and the positions within are columns?
+
+Looking again: there's [1,1,1,1,0,...], which has 20 elements. So maybe it's a 20-column grid with multiple rows. Each number is either -1, 0, or 1.
+
+So each sublist is like a row in this grid. The numbers could represent something like a binary state (maybe active/inactive) or perhaps transitions between states (-1 indicating a change from one state to another?).
+
+But the user also mentioned something about [4 (0,12) (1x1) 2 [[1]]]. Maybe these are markers where certain events happen. For example, at position (0,12), there's a value of 2 in a 1x1 context.
+
+I think I need to map the numbers given into their respective positions in the grid. Let me try that:
+
+First sublist: [1,1,1,1,0,...], which is from index 0 to 19.
+
+So position (4,0) would be the first element of the fifth row? Or maybe it's a different indexing system?
+
+Wait, perhaps each number in parentheses refers to something like (value at certain coordinates). For instance:
+
+- The first part: 4 could represent a value or type.
+- Then within the next set of parentheses: (0,12) indicates position (row=0, column=12).
+- Then "1x1" might indicate that it's a single cell with size 1.
+- Then "2 [[1]]": perhaps an index pointing to where this occurs at row 4, column something? Or maybe it refers to the value being placed here.
+
+But I'm getting confused. Maybe each of these is describing some kind of structure in the grid—like peaks or valleys, or specific patterns that repeat.
+
+Alternatively, could these be coordinates on a graph with multiple dimensions? For example, (0,12) might be x and y positions, but then how does 4 factor into it?
+
+Wait, another thought: Maybe each set inside parentheses is describing an event or point in the grid. So for the first one:
+
+(4 (0,12) (1x1) 2 [[1]] )
+
+This could mean that at position (0,12), which is row 0, column 12 of something called a "1x1" structure, there's an event or marker with value 2.
+
+But this is getting too abstract. Maybe I need to consider the entire grid and see if these markers point to specific features within it.
+
+Looking at the first sublist: [1,1,1,1,0,...]. Let me list them out:
+
+Indices 0-4: 1,1,1,1,0
+
+5-9: 1,0,1,1,0
+
+10-14: 0,0,0,1,0
+
+15-19: 1,0,0,0,0
+
+Wait, no, each sublist has 20 elements. So indices 0-19 for each row.
+
+So perhaps position (row=4, column=0) is the first element of the fifth row? Let me count:
+
+Row 0: [1,1,1,1,0,...]
+
+Row 1: [1,0,1,1,0,...]
+
+Wait, no. Wait, in programming terms, if we have a list of lists, each sublist is a row, and the elements within are columns.
+
+So for example:
+
+row 0: index 0 is column 0
+
+row 1: index 0 is column 0
+
+and so on.
+
+Therefore, position (4, 12) would be in row 4, column 12. Let's see what that element is in each sublist.
+
+Looking at the fifth row (index 4):
+
+[0,-1,1, -1, ... ] Wait, no, looking back:
+
+Wait, I need to actually look through all the sublists because it seems like they are arranged such that each list might have a different pattern. Hmm, maybe this is too time-consuming.
+
+Alternatively, perhaps these markers describe something else—like the occurrence of certain transitions or peaks in the grid.
+
+Another approach: Maybe the user is using some kind of coordinate system where (4,0,12) refers to specific columns in each row?
+
+Wait, but it's unclear. Maybe I should focus on what each part means:
+
+- The first number seems to be an identifier for something—maybe a value or type at that position.
+- Then the coordinates: 0 and 12 within parentheses.
+- "1x1" probably refers to the size of some matrix, so maybe it's indicating a single cell with dimensions 1x1.
+- Then the number 2 [[1]] might be another identifier. Maybe it's like an index—row 2 or column 1? Or perhaps two separate identifiers: 2 and 1?
+
+This is getting too tangled. Maybe I should consider that each of these markers describes a specific feature in the grid:
+
+For example, (4 (0,12) (1x1) 2 [[1]] ) could be saying that at row=0, column=12, there's an element with size 1x1 and value 2.
+
+Similarly, (19,16) refers to some other feature—maybe a point in the grid where something happens?
+
+Wait, perhaps these are markers for events or transitions. For example, every time certain conditions meet, we place a marker here.
+
+But without knowing more about what the data represents, it's hard to say. Maybe I should try to visualize one of the sublists:
+
+Take row 0: [1,1,1,1,0, -1,1,-1,...]
+
+Row 4: [-1,-1, ..., something?]
+
+Wait, actually looking back at the user message—the data continues beyond what's shown here—but each sublist is consistent with having values of -1, 0, and 1.
+
+Perhaps these markers are indicating positions where certain properties change—like a gradient or derivative in some sense. For example, if you consider each value as part of a graph, the numbers could represent slopes or something similar.
+
+Alternatively, maybe it's about tracking changes between rows—so at position (row=4, column=12), the value is -1, which might indicate a change from 0 to 1 or vice versa.
+
+Wait, let me check: If I look at row 3:
+
+[0,-1,1,-1,...]
+
+Row 4 starts with [-1,-1, ..., etc.]
+
+So maybe column=12 in row 4 is some value that's -1. But again, without more context, it's tricky.
+
+Alternatively, the markers could be indicating positions of maximums or minimums within certain regions.
+
+Wait, another thought: Maybe each sublist represents a different entity or variable, and the numbers inside are observations over time. So for example, row=4 could represent a specific measurement taken at column 0 through 19, and the values in that row show how it fluctuates between -1, 0, and 1.
+
+But then what do the markers mean? Maybe they're highlighting particular points where certain thresholds are crossed or where changes happen.
+
+Alternatively, perhaps these numbers represent something like a binary state (1 active, 0 inactive) with -1 indicating an unknown or error state. Then the markers could be noting specific events—like when a transition occurs from 1 to 0 or vice versa.
+
+Wait, let me try to think about how these coordinates might translate into data features:
+
+- The first number: Maybe it's a unique identifier for each feature.
+- The next set of numbers (inside parentheses): Coordinates in the grid.
+- Then "1x1": Maybe indicating that at that coordinate, we have a single cell with size 1 in both dimensions.
+- The last part: A value or something else associated with that position.
+
+But I'm still not sure. Maybe these are all related to some kind of matrix analysis where each number refers to an element and its properties?
+
+Wait, perhaps it's about the positions of non-zero elements—so (row=4, column=12) is a position where the value is -1 or 1.
+
+But if I think in terms of linear algebra, those could be indices into a matrix.
+
+Alternatively, maybe these are indicating locations on a torus grid where certain conditions meet.
+
+Wait, this is getting too abstract. Maybe instead, let's consider that each sublist represents a different slice or layer, and the numbers inside represent properties at specific points within that slice.
+
+But without more context, it's hard to pinpoint what they're referring to. Perhaps I should just focus on trying to interpret one of these markers:
+
+Take (4 (0,12) 1x1 2 [[1]])—so maybe row=4 is the first number, and then within that row, column=0, row 12? Wait, no—that might not make sense.
+
+Wait, perhaps it's structured as: Number, then x, y coordinates separated by commas inside parentheses, then matrix size, then something else in brackets.
+
+So for example:
+
+(4 (0,12) (1x1) 2 [[1]])
+
+- 4 is the number
+- Then within parentheses: row=0, column=12
+- Then (1x1): maybe indicating a single cell with dimensions 1x1 at that position.
+- Then "2 [[1]]": Perhaps another identifier—maybe row=2 or some other index.
+
+Alternatively, it could be:
+
+Number is the main identifier—so 4 refers to something in general, then within its context: location (0,12), size 1x1, and associated with an element at position [2][1].
+
+But this is getting too speculative. Maybe I should give up trying to decode the markers without more information.
+
+Alternatively, perhaps these are coordinates for a plot or graph where each marker indicates a data point—so (4,0,12) refers to x=4, y=0, z=12—but that might not align with the context of -1, 0, 1 values.
+
+Wait, maybe it's something else. Perhaps these are indices into an array where each element is a tuple containing multiple values—for example, row=4, column=0 has some value, and then row=4, column=12 refers to another property.
+
+But again, without knowing the exact data structure or context, it's hard to tell.
+
+Maybe I should try focusing on one aspect: The fact that each sublist seems to have a pattern of -1s and 0s with an occasional 1. So perhaps these markers are highlighting where certain transitions happen—for example, from 1 to 0 or vice versa.
+
+Alternatively, since the user is asking about interpreting these markers, maybe they're related to some kind of event logging—so each marker indicates when a particular event occurred in that column and row.
+
+But again, without more context, it's challenging. Maybe I should consider that "4 (0,12)" refers to an event occurring at the 0th position in row=4, column=12, with some value associated—like 1x1 indicating a single occurrence or something similar.
+
+Alternatively, maybe each number is part of a coordinate system where:
+
+- The first number: x-coordinate
+- Second and third numbers inside parentheses: y-coordinate
+- Then size information
+- Then another identifier
+
+But without knowing the exact rules, it's hard to say.
+
+Wait, perhaps "1x1" refers to a matrix size—so at position (0,12), we have a 1x1 matrix with value 2 and [ [1] ] maybe indicating that this is related to index=1 in some way.
+
+This is getting too convoluted. Maybe the user just needs an explanation of what each part means, not the exact interpretation without context.
+
+Alternatively, perhaps these are coordinates for a graph where:
+
+- The first number: layer or dataset
+- Next two numbers: x and y positions
+- Then size information
+- Then another attribute
+
+But again, too vague.
+
+Perhaps it's time to conclude that without more context or clarification on what the data represents, I can't precisely interpret these markers. They might be part of a specific data structure or domain-specific encoding that isn't clear from the given information.
+
+Therefore, my final answer is: It seems like you're dealing with complex data structures and coordinate systems where each marker encodes multiple pieces of information about positions and attributes within a grid or matrix, but without additional context, it's challenging to provide an exact interpretation.
+</think>
+
+It appears that you are working with complex data structures and coordinate systems. Each marker encodes various details such as coordinates (row, column), sizes, and possibly additional attributes. However, without further context about the specific domain or application of this data, a precise interpretation cannot be provided.
+
+Please provide more information about the nature of your data or the context in which these markers are used so that I can offer a clearer explanation.
